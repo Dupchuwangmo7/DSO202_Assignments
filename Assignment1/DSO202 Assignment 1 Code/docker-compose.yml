@@ -1,0 +1,39 @@
+# Local-only smoke test harness (per Image Build Guide §7 step 5).
+# Not part of the Kubernetes submission -- just verifies the three images
+# talk to each other correctly before anything gets pushed.
+services:
+  db:
+    build: ./db
+    environment:
+      POSTGRES_DB: taskdb
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskdb"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: taskdb
+      DB_USER: taskuser
+      DB_PASSWORD: taskpass
+      APP_PORT: "8080"
+      CORS_ORIGIN: "*"
+    ports:
+      - "18080:8080"
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: "http://localhost:18080"
+    ports:
+      - "18081:8080"
+    depends_on:
+      - backend

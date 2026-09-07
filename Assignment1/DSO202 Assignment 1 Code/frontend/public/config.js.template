@@ -1,0 +1,6 @@
+// Rendered at container start by docker-entrypoint.sh via envsubst.
+// Static assets can't read environment variables at request time, so the
+// real value gets baked into config.js once, right before nginx starts.
+window.__CONFIG__ = {
+  BACKEND_URL: "${BACKEND_URL}"
+};
