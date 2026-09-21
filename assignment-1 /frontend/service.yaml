@@ -1,0 +1,20 @@
+# nodePort 30080 must match the extraPortMappings entry in your kind
+# cluster config (Practical 1) if you want to reach this from a browser
+# directly. If your kind config maps a different hostPort, change the
+# value below to match -- or just use:
+#   kubectl port-forward -n dso202-assignment-01 svc/frontend-svc 8080:8080
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  namespace: dso202-assignment-01
+  labels:
+    tier: frontend
+spec:
+  type: NodePort
+  selector:
+    tier: frontend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080

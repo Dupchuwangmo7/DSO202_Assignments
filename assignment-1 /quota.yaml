@@ -1,0 +1,34 @@
+# Justification for these values lives in README.md (Task 6 requirement).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dso202-quota
+  namespace: dso202-assignment-01
+spec:
+  hard:
+    pods: "6"
+    requests.cpu: "750m"
+    requests.memory: "512Mi"
+    limits.cpu: "1500m"
+    limits.memory: "1Gi"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dso202-limitrange
+  namespace: dso202-assignment-01
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      default:
+        cpu: "250m"
+        memory: "256Mi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "500m"
+        memory: "512Mi"

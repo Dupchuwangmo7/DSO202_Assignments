@@ -1,0 +1,60 @@
+# TODO: replace <TAG> with the exact tag your tutor published.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: dso202-assignment-01
+  labels:
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: backend
+  template:
+    metadata:
+      labels:
+        tier: backend
+    spec:
+      containers:
+        - name: backend
+          image: sarojsanyasi/dso202-backend:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            # Backend tier consumes DB_* keys only -- never POSTGRES_*.
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: DB_NAME
+            - name: APP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: APP_PORT
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: CORS_ORIGIN
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dso202-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dso202-secret
+                  key: DB_PASSWORD

@@ -1,0 +1,16 @@
+# Non-sensitive configuration shared across tiers.
+# DB_NAME must match POSTGRES_DB (same value, two different key names --
+# see the Image Build Guide §3.3 for why the naming differs).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dso202-config
+  namespace: dso202-assignment-01
+data:
+  DB_HOST: "db-svc"
+  DB_PORT: "5432"
+  DB_NAME: "taskdb"
+  APP_PORT: "8080"
+  CORS_ORIGIN: "*"
+  POSTGRES_DB: "taskdb"
+  BACKEND_URL: "http://backend-svc:8080"

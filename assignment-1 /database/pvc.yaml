@@ -1,0 +1,17 @@
+# Uses kind's default StorageClass ("standard"), provisioned by
+# rancher.io/local-path. If PVC stays Pending, run:
+#   kubectl get storageclass
+# and confirm "standard" (or whichever is marked default) exists.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: dso202-assignment-01
+  labels:
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

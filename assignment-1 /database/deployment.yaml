@@ -1,0 +1,48 @@
+# TODO: replace <TAG> with the exact tag your tutor published
+# (per the assignment brief, "latest" is not permitted).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+  namespace: dso202-assignment-01
+  labels:
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: database
+  template:
+    metadata:
+      labels:
+        tier: database
+    spec:
+      containers:
+        - name: database
+          image: sarojsanyasi/dso202-db:1.0
+          ports:
+            - containerPort: 5432
+          env:
+            # Database tier consumes POSTGRES_* keys only -- never DB_*.
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dso202-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dso202-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: db-storage
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: db-pvc

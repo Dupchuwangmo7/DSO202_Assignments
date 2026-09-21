@@ -1,0 +1,29 @@
+# TODO: replace <TAG> with the exact tag your tutor published.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: dso202-assignment-01
+  labels:
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: sarojsanyasi/dso202-frontend:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: dso202-config
+                  key: BACKEND_URL

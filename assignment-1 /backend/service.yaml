@@ -1,0 +1,16 @@
+# ClusterIP (default type) -- reachable only within the namespace/cluster,
+# never externally. This is what Task 7b's DNS-resolution test targets.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: dso202-assignment-01
+  labels:
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    tier: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
