@@ -1,0 +1,14 @@
+# Helm values for the Traefik Ingress controller on the kind cluster.
+# kind-config.yaml forwards host ports 80/443 to node ports 30080/30443, so the
+# controller's Service is a NodePort on exactly those ports.
+service:
+  type: NodePort
+ports:
+  web:
+    nodePort: 30080
+  websecure:
+    nodePort: 30443
+providers:
+  kubernetesIngress:
+    enabled: true
+

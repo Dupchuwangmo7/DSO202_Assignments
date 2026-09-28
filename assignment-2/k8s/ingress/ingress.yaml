@@ -1,0 +1,29 @@
+# One host, two paths. Longest matching path wins, so /api/... goes to the
+# backend and everything else goes to the frontend. No path rewriting is
+# needed: the backend already serves /api/tasks and /api/status.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-tracker
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker}
+spec:
+  ingressClassName: traefik      # must match: kubectl get ingressclass
+  rules:
+    - host: tasks.dso202.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  name: http

@@ -1,0 +1,34 @@
+# Optional phase 2: same routing as ingress.yaml plus TLS. Apply this file
+# INSTEAD of ingress.yaml (same object name, so it updates in place).
+# The certificate Secret is created from the command line and is NOT stored
+# in this repository (see README section 4, phase 2).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-tracker
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker}
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - tasks.dso202.local
+      secretName: tasks-tls
+  rules:
+    - host: tasks.dso202.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  name: http

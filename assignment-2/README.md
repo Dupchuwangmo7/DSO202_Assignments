@@ -4,8 +4,10 @@ Continuation of Assignment 1. The application (frontend, backend, database
 images and their APIs, schema and environment variables) is **unchanged**;
 only the Kubernetes layer is improved using Unit II concepts.
 
-> Status: Stages A (StatefulSet) and B (RBAC) written; Stage A verified on a live cluster. Sections marked
+> Status: Stages A (StatefulSet), B (RBAC), C (Ingress) implemented and verified on a live cluster. Operators and Istio still to do. Sections marked
 > **TODO** are completed as each stage is implemented and verified.
+
+![alt text](final.png)
 
 ## 1. Analysis of the existing application
 
@@ -31,7 +33,7 @@ Findings that drive the design:
 | Concept | Applicable? | Where | Why |
 |---|---|---|---|
 | StatefulSet | Yes | Database only | Only stateful workload; needs stable identity and per-Pod storage. Frontend/backend remain Deployments. |
-| Ingress | Yes | `/` → frontend, `/api` → backend | Fixes finding 1: one browser-reachable address routes to both tiers. **TODO** |
+| Ingress | Yes | `/` → frontend, `/api` → backend | Fixes finding 1: one browser-reachable address routes to both tiers. |
 | RBAC | Yes (small) | Per-workload ServiceAccounts; Roles for human users | Pods need no API access, so workload ServiceAccounts get no permissions; the real use is scoping what people can do. |
 | Operator | Partly | Existing PostgreSQL operator, demonstration only | A custom operator would be unjustified complexity. **TODO** |
 | Istio | Marginal | Demonstration only | One internal hop; limited benefit for three services. **TODO** |
@@ -88,6 +90,8 @@ pod/db-0                        1/1     Running   0          102s     <- Pod is 
 persistentvolumeclaim/data-db-0 Bound  pvc-216af4ae-d101-42e3-9063-573af0f40311  1Gi  RWO  standard  15m   <- volume is not
 ```
 
+![alt text](pod-running.png)
+
 Stable identity and DNS (the Pod IP may change on recreation; the name does not):
 
 ```
@@ -96,13 +100,106 @@ $ kubectl get endpoints db-svc          ->  10.244.0.9:5432
 $ nslookup db-0.db-svc.dso202-assignment-02.svc.cluster.local   ->  10.244.0.9
 $ nslookup db-svc.dso202-assignment-02.svc.cluster.local        ->  10.244.0.9
 ```
+![alt text](<Screenshot 2026-09-28 at 9.08.07 pm.png>)
 
 Note: `nslookup db-0.db-svc` (short name) returned NXDOMAIN from inside the
 backend Pod, while the fully-qualified names resolve. This is most likely the
 BusyBox resolver in the Alpine-based backend image not applying the cluster
 search domains; this was not investigated further.
 
-## 4. Ingress — TODO
+## 4. Ingress
+
+Files: `k8s/ingress/traefik-values.yaml`, `ingress.yaml`, `ingress-tls.yaml`
+
+**Problem being solved.** The frontend's JavaScript runs in the browser and
+calls `${BACKEND_URL}/api/...`. A browser outside the cluster cannot resolve
+`backend-svc`, and the assignment forbids exposing the backend through a
+NodePort or LoadBalancer. An Ingress gives the browser **one public address**
+and routes by path inside the cluster, so the backend stays internal.
+
+**Controller choice.** An Ingress object does nothing without an Ingress
+controller. The community `ingress-nginx` controller was retired in March
+2026 (no further releases, bug fixes or security patches), so this project
+uses **Traefik**, which is maintained and implements the standard
+`networking.k8s.io/v1` Ingress API taught in Unit II. Traefik is installed
+with Helm in its own `traefik` namespace and exposed as a NodePort service on
+30080/30443; `kind-config.yaml` forwards host ports 80/443 to those.
+
+**Routing** (`ingress.yaml`): host `tasks.dso202.local`
+
+| Path | pathType | Backend Service |
+|---|---|---|
+| `/api` | Prefix | `backend-svc:http` |
+| `/` | Prefix | `frontend-svc:http` |
+
+With `Prefix`, the longest matching path wins, so `/api/tasks` reaches the
+backend and everything else reaches the frontend. No rewrite is needed.
+`ingressClassName: traefik` ties the Ingress to the controller through the
+IngressClass object that the Helm chart creates.
+
+**Request path**
+
+```
+Browser  http://tasks.dso202.local/api/tasks
+  -> /etc/hosts maps the name to 127.0.0.1
+  -> host port 80 -> kind node port 30080 (Docker port mapping)
+  -> NodePort rule (kube-proxy) -> Traefik Pod in namespace traefik
+  -> Traefik matches Host + path /api against the Ingress rules
+  -> sends the request to a backend Pod IP (taken from backend-svc's endpoints)
+  -> backend Pod -> db-svc -> db-0 (Postgres)
+```
+
+The page itself follows the same route with path `/`, ending at the
+frontend Pod. `config.js` (rendered from `BACKEND_URL`) tells the browser to
+call `http://tasks.dso202.local`, so its API calls are same-origin.
+
+**Evidence**
+
+Traefik installed via Helm (image `traefik:v3.7.13`); IngressClass `traefik`
+created as the cluster default. The Ingress routes both paths correctly:
+
+```
+$ kubectl get ingress -n dso202-assignment-02
+NAME           CLASS     HOSTS                ADDRESS   PORTS   AGE
+task-tracker   traefik   tasks.dso202.local             80      0s
+
+$ curl -i http://tasks.dso202.local/api/status
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+X-Powered-By: Express
+
+{"status":"ok","db":"connected"}
+
+$ curl http://tasks.dso202.local/api/tasks
+[{"id":1,...},{"id":2,...},{"id":3,...},{"id":4,"title":"survives db-0 deletion",...}]
+```
+
+![alt text](final-curl.png)
+
+The `/api/status` response (`db: connected`) confirms the request travelled
+browser → Ingress → Traefik → backend-svc → backend Pod → db-svc → db-0, and
+`/api/tasks` returned the live task list including task 4 from the StatefulSet
+test. In the browser, `http://tasks.dso202.local` loads the UI with the status
+badge reading "Backend + DB online" — the same UI that showed "Backend
+unreachable" in Assignment 1, now fixed because the browser calls the single
+public Ingress address instead of the cluster-internal `backend-svc`.
+(Screenshots: `kubectl get ingress`, the two curl transcripts, and the working UI.)
+
+> Note: the Traefik Service was created as type `LoadBalancer` (the chart
+> default) rather than `NodePort`, because the `-f traefik-values.yaml` path
+> was not picked up during install. It still works: kind has no cloud load
+> balancer, so `EXTERNAL-IP` stays `<pending>`, but the node ports 30080/30443
+> are mapped and reachable. To match the intended configuration exactly, run
+> `helm upgrade traefik traefik/traefik -n traefik -f k8s/ingress/traefik-values.yaml`
+> from the assignment-2 folder (not from inside k8s/).
+
+**Phase 2 (optional): TLS.** A self-signed certificate is created locally and
+stored as a `kubernetes.io/tls` Secret named `tasks-tls`; the private key is
+never committed. `ingress-tls.yaml` adds the `tls` block, and `BACKEND_URL`
+is changed to `https://tasks.dso202.local` so the browser's API calls use
+HTTPS too. Browsers warn about a self-signed certificate; that is expected.
+
 ## 5. RBAC
 
 Files: `k8s/rbac/serviceaccounts.yaml`, `user-serviceaccounts.yaml`,
@@ -121,11 +218,46 @@ Deliberately withheld from both human roles: `secrets` (credentials),
 credentials), and, for `deployer-sa`, deletion of PVCs (which would destroy
 database data).
 
-**Evidence (TODO — paste real `kubectl auth can-i` output):**
+**Evidence** — every result matches the least-privilege design:
 
 ```
-<paste>
+# viewer-sa
+kubectl auth can-i get pods        ... viewer-sa   -> yes
+kubectl auth can-i get pods/log    ... viewer-sa   -> yes
+kubectl auth can-i get secrets     ... viewer-sa   -> no
+kubectl auth can-i delete pods     ... viewer-sa   -> no
+kubectl auth can-i get pods -n kube-system ... viewer-sa -> no   (other namespace)
+kubectl auth can-i get nodes       ... viewer-sa   -> no   (cluster-scoped)
+
+# deployer-sa
+kubectl auth can-i create deployments            ... deployer-sa -> yes
+kubectl auth can-i delete pods                   ... deployer-sa -> yes
+kubectl auth can-i delete persistentvolumeclaims ... deployer-sa -> no
+kubectl auth can-i get secrets                   ... deployer-sa -> no
+kubectl auth can-i create pods/exec              ... deployer-sa -> no
+
+# backend-sa (workload identity: no API access at all)
+kubectl auth can-i get configmaps  ... backend-sa  -> no
+kubectl auth can-i get pods        ... backend-sa  -> no
 ```
+
+The denial is also visible in a real command, not just `can-i`:
+
+```
+$ kubectl get pods -n dso202-assignment-02 --as=system:serviceaccount:dso202-assignment-02:viewer-sa
+NAME                        READY   STATUS    RESTARTS        AGE
+backend-5b6f776986-8259j    1/1     Running   1 (3m48s ago)   3h37m
+db-0                        1/1     Running   1 (3m48s ago)   3h33m
+frontend-5979865ff8-nnzp5   1/1     Running   1 (3m48s ago)   3h37m
+
+$ kubectl get secrets -n dso202-assignment-02 --as=system:serviceaccount:dso202-assignment-02:viewer-sa
+Error from server (Forbidden): secrets is forbidden: User
+"system:serviceaccount:dso202-assignment-02:viewer-sa" cannot list resource
+"secrets" in API group "" in the namespace "dso202-assignment-02"
+```
+
+`viewer-sa` can see Pods but is refused Secrets, proving the read-only role
+never exposes credentials.
 
 ## 6. Operators — TODO
 ## 7. Istio — TODO
