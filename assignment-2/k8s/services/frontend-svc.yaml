@@ -1,0 +1,14 @@
+# ClusterIP, not NodePort: external traffic now enters through the Ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker, tier: frontend}
+spec:
+  type: ClusterIP
+  selector: {app: task-tracker, tier: frontend}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

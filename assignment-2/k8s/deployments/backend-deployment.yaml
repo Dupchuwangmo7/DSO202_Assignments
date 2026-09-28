@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker, tier: backend}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: task-tracker, tier: backend}
+  template:
+    metadata:
+      labels: {app: task-tracker, tier: backend}
+    spec:
+      serviceAccountName: backend-sa
+      automountServiceAccountToken: false
+      containers:
+        - name: backend
+          image: sarojsanyasi/dso202-backend:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: DB_HOST}
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: DB_PORT}
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: DB_NAME}
+            - name: APP_PORT
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: APP_PORT}
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: CORS_ORIGIN}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef: {name: dso202-secret, key: DB_USER}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: dso202-secret, key: DB_PASSWORD}

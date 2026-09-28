@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker, tier: frontend}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: task-tracker, tier: frontend}
+  template:
+    metadata:
+      labels: {app: task-tracker, tier: frontend}
+    spec:
+      serviceAccountName: frontend-sa
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          image: sarojsanyasi/dso202-frontend:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef: {name: dso202-config, key: BACKEND_URL}

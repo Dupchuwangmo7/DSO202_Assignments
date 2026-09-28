@@ -1,0 +1,15 @@
+# Headless Service = the StatefulSet's "governing service". It gives each Pod a
+# stable DNS name (db-0.db-svc) and resolves db-svc straight to the Pod IP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-svc
+  namespace: dso202-assignment-02
+  labels: {app: task-tracker, tier: database}
+spec:
+  clusterIP: None
+  selector: {app: task-tracker, tier: database}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

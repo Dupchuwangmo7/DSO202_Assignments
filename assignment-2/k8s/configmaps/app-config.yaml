@@ -1,0 +1,18 @@
+# Same keys as Assignment 1 so the application needs no changes.
+# BACKEND_URL now points at the public Ingress address (the browser calls it),
+# not the cluster-internal Service name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dso202-config
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+data:
+  DB_HOST: "db-svc"
+  DB_PORT: "5432"
+  DB_NAME: "taskdb"
+  APP_PORT: "8080"
+  CORS_ORIGIN: "*"
+  POSTGRES_DB: "taskdb"
+  BACKEND_URL: "http://tasks.dso202.local"
