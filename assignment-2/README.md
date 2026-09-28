@@ -7,7 +7,7 @@ only the Kubernetes layer is improved using Unit II concepts.
 > Status: Stages A (StatefulSet), B (RBAC), C (Ingress) implemented and verified on a live cluster. Operators and Istio still to do. Sections marked
 > **TODO** are completed as each stage is implemented and verified.
 
-![alt text](final.png)
+![alt text](screenshots/final.png)
 
 ## 1. Analysis of the existing application
 
@@ -90,7 +90,8 @@ pod/db-0                        1/1     Running   0          102s     <- Pod is 
 persistentvolumeclaim/data-db-0 Bound  pvc-216af4ae-d101-42e3-9063-573af0f40311  1Gi  RWO  standard  15m   <- volume is not
 ```
 
-![alt text](pod-running.png)
+![alt text](screenshots/pod-running.png)
+
 
 Stable identity and DNS (the Pod IP may change on recreation; the name does not):
 
@@ -100,7 +101,7 @@ $ kubectl get endpoints db-svc          ->  10.244.0.9:5432
 $ nslookup db-0.db-svc.dso202-assignment-02.svc.cluster.local   ->  10.244.0.9
 $ nslookup db-svc.dso202-assignment-02.svc.cluster.local        ->  10.244.0.9
 ```
-![alt text](<Screenshot 2026-09-28 at 9.08.07 pm.png>)
+![alt text](<screenshots/Screenshot 2026-09-28 at 8.16.18 pm.png>)
 
 Note: `nslookup db-0.db-svc` (short name) returned NXDOMAIN from inside the
 backend Pod, while the fully-qualified names resolve. This is most likely the
@@ -175,7 +176,7 @@ $ curl http://tasks.dso202.local/api/tasks
 [{"id":1,...},{"id":2,...},{"id":3,...},{"id":4,"title":"survives db-0 deletion",...}]
 ```
 
-![alt text](final-curl.png)
+![alt text](screenshots/final-curl.png)
 
 The `/api/status` response (`db: connected`) confirms the request travelled
 browser → Ingress → Traefik → backend-svc → backend Pod → db-svc → db-0, and
@@ -184,7 +185,8 @@ test. In the browser, `http://tasks.dso202.local` loads the UI with the status
 badge reading "Backend + DB online" — the same UI that showed "Backend
 unreachable" in Assignment 1, now fixed because the browser calls the single
 public Ingress address instead of the cluster-internal `backend-svc`.
-(Screenshots: `kubectl get ingress`, the two curl transcripts, and the working UI.)
+
+![alt text](screenshots/final-curl.png)
 
 > Note: the Traefik Service was created as type `LoadBalancer` (the chart
 > default) rather than `NodePort`, because the `-f traefik-values.yaml` path
@@ -240,6 +242,8 @@ kubectl auth can-i create pods/exec              ... deployer-sa -> no
 kubectl auth can-i get configmaps  ... backend-sa  -> no
 kubectl auth can-i get pods        ... backend-sa  -> no
 ```
+
+![alt text](<screenshots/Screenshot 2026-09-28 at 8.17.39 pm.png>)
 
 The denial is also visible in a real command, not just `can-i`:
 
